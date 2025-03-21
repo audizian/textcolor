@@ -1,4 +1,4 @@
-# mc-text-color-util
+# text-color
 
 converting minecraft color strings
 
@@ -35,7 +35,7 @@ fun wavyLine(repeat: Int = 4) = buildString {
 
 ## 1. clone the repo
 ```
-https://github.com/audizign/mc-text-color-util.git
+https://github.com/audizian/textcolor.git
 ```
 
 ## 2. publish to maven
@@ -48,14 +48,6 @@ https://github.com/audizign/mc-text-color-util.git
 ### 3a. shade
 1. see `example.gradle.kts` and utilize in your project
 2. gradle -> tasks -> shadowJar
-
-### 3b. use the plugin
-
-1-. download from releases (when i figure out how to) and add to your plugins folder
-
-2a. add `depend: [TextColorUtil]` in your plugin.yml
-
-2b. if you're using the `nokt` version, ensure a kotlin library plugin is also installed: https://hangar.papermc.io/4drian3d/MCKotlin
 
 # goals
 - [ ] stop refactoring
