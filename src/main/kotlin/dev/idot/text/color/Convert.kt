@@ -8,7 +8,6 @@
 
 package dev.idot.text.color
 
-import dev.idot.text.color.Color
 import dev.idot.text.color.Color.Companion.fromHexOrNamed
 import dev.idot.text.color.Color.Companion.fromMojangColor
 import dev.idot.text.color.Color.Companion.fromStrictHexCode
@@ -37,6 +36,7 @@ val namedColorRegex = Regex("\\{#($namedColorPattern)}", IGNORE_CASE)
 val namedColorSeparatorRegex = Regex("\\{#($namedColorPattern)<>}", IGNORE_CASE)
 val namedColorGradientRegex = Regex("\\{#($namedColorPattern)>}(.*?)\\{#($namedColorPattern)<}", IGNORE_CASE)
 val namedColorGradientListRegex = Regex("\\{#(?:$namedColorPattern,)*?$namedColorPattern,?}", IGNORE_CASE)
+
 
 /**
  * @param delimiter for color code (default: [codePrefix])
@@ -79,9 +79,9 @@ fun String.stripColors(delimiter: CustomDelimiter = codePrefix): String =
     .stripColorCodes(delimiter)
     .stripFormatCodes(delimiter)
     .stripMojangCodes()
-inline fun <T : Iterable<String>> T.strip(delimiter: CustomDelimiter = codePrefix): List<String> =
+inline fun <T : Iterable<String>> T.stripColors(delimiter: CustomDelimiter = codePrefix): List<String> =
     map { it.stripColors(delimiter) }
-inline fun Array<String>.strip(delimiter: CustomDelimiter = codePrefix) =
+inline fun Array<String>.stripColors(delimiter: CustomDelimiter = codePrefix) =
     map { it.stripColors(delimiter) }.toTypedArray()
 
 fun String.stripBukkitCodes(delimiter: CustomDelimiter = codePrefix) =
@@ -148,6 +148,7 @@ inline fun <T : Iterable<String>> T.convertColorsAndFormat(delimiter: CustomDeli
 inline fun Array<String>.convertColorsAndFormat(delimiter: CustomDelimiter = codePrefix) =
     map { it.convertColorsAndFormat(delimiter) }.toTypedArray()
 
+// Bukkit
 fun String.convertBukkitColors(delimiter: CustomDelimiter = codePrefix): String =
     replace(bukkitHexRegex(delimiter)) { match ->
     val hex = match.value
@@ -167,6 +168,28 @@ inline fun <T : Iterable<String>> T.convertBukkitColors(delimiter: CustomDelimit
 inline fun Array<String>.convertBukkitColors(delimiter: CustomDelimiter = codePrefix) =
     map { it.convertBukkitColors(delimiter) }.toTypedArray()
 
+fun String.componentBukkitColors(delimiter: CustomDelimiter = codePrefix): String =
+    replace(bukkitHexRegex(delimiter)) { match ->
+        val hex = match.value
+        when (hex.length) {
+            8 -> StringBuilder(7).append("<color:#").apply {
+                for (c in hex.drop(3)) {
+                    if (c == delimiter.value) continue
+                    append(c).append(c)
+                }
+                append(">")
+            }
+            14 -> hex.replace("[${delimiter.value}x]".toRegex(), "").let { "<color:#$it>" }
+            else -> hex
+        }
+    }
+inline fun <T : Iterable<String>> T.componentBukkitColors(delimiter: CustomDelimiter = codePrefix): List<String> =
+    map { it.componentBukkitColors(delimiter) }
+inline fun Array<String>.componentBukkitColors(delimiter: CustomDelimiter = codePrefix) =
+    map { it.componentBukkitColors(delimiter) }.toTypedArray()
+
+
+// Color Codes
 fun String.convertColorCodes(delimiter: CustomDelimiter = codePrefix): String =
     replace(colorCodeRegex(delimiter), "$SECTION$1")
 inline fun <T : Iterable<String>> T.convertColorCodes(delimiter: CustomDelimiter = codePrefix): List<String> =
@@ -174,12 +197,41 @@ inline fun <T : Iterable<String>> T.convertColorCodes(delimiter: CustomDelimiter
 inline fun Array<String>.convertColorCodes(delimiter: CustomDelimiter = codePrefix) =
     map { it.convertColorCodes(delimiter) }.toTypedArray()
 
+fun String.componentColorCodes(delimiter: CustomDelimiter = codePrefix): String =
+    colorCodeRegex(delimiter).replace(this) { match ->
+        CodedColor[match.value[1]]?.let { "<${it.name.lowercase()}>" } ?: match.value
+    }
+inline fun <T : Iterable<String>> T.componentColorCodes(delimiter: CustomDelimiter = codePrefix): List<String> =
+    map { it.componentColorCodes(delimiter) }
+inline fun Array<String>.componentColorCodes(delimiter: CustomDelimiter = codePrefix) =
+    map { it.componentColorCodes(delimiter) }.toTypedArray()
+
+
+// Format Codes
 fun String.convertFormatCodes(delimiter: CustomDelimiter = codePrefix): String =
     replace(formatCodeRegex(delimiter), "$SECTION$1")
 inline fun <T : Iterable<String>> T.convertFormatCodes(delimiter: CustomDelimiter = codePrefix): List<String> =
     map { it.convertFormatCodes(delimiter) }
 inline fun Array<String>.convertFormatCodes(delimiter: CustomDelimiter = codePrefix) =
     map { it.convertFormatCodes(delimiter) }.toTypedArray()
+
+fun String.componentFormatCodes(delimiter: CustomDelimiter = codePrefix): String =
+    formatCodeRegex(delimiter).replace(this) { match ->
+        when (match.groupValues[1]) {
+            "k" -> "obf"
+            "l" -> "b"
+            "m" -> "st"
+            "n" -> "u"
+            "o" -> "i"
+            "r" -> "reset"
+            else -> match.value
+        }.let { "<$it>" }
+    }
+inline fun <T : Iterable<String>> T.componentFormatCodes(delimiter: CustomDelimiter = codePrefix): List<String> =
+    map { it.componentFormatCodes(delimiter) }
+inline fun Array<String>.componentFormatCodes(delimiter: CustomDelimiter = codePrefix) =
+    map { it.componentFormatCodes(delimiter) }.toTypedArray()
+
 
 /**
  * @param delimiter for color code (default: [codePrefix])
@@ -193,6 +245,16 @@ inline fun <T : Iterable<String>> T.convertHexCodes(delimiter: CustomDelimiter =
 inline fun Array<String>.convertHexCodes(delimiter: CustomDelimiter = codePrefix) =
     map { it.convertHexCodes(delimiter) }.toTypedArray()
 
+fun String.componentHexCodes(delimiter: CustomDelimiter = codePrefix): String =
+    replace(hexCodeRegex(delimiter)) {
+        it.groupValues[1].fromStrictHexCode()?.toString()?.let { "<color:#$it>" } ?: it.value
+    }
+inline fun <T : Iterable<String>> T.componentHexCodes(delimiter: CustomDelimiter = codePrefix): List<String> =
+    map { it.componentHexCodes(delimiter) }
+inline fun Array<String>.componentHexCodes(delimiter: CustomDelimiter = codePrefix) =
+    map { it.componentHexCodes(delimiter) }.toTypedArray()
+
+
 /**
  * @return the [String] with all [NamedColor] codes ("{#RRGGBB}", "{#RGB}" or "{#COLORNAME}") converted
  * to minified mojang color codes ("&C" or "§x§R§R§G§G§B§B")
@@ -204,12 +266,15 @@ inline fun <T : Iterable<String>> T.convertNamedColors(): List<String> =
 inline fun Array<String>.convertNamedColors() =
     map { it.convertNamedColors() }.toTypedArray()
 
-/**
- * @return the [String] with all [NamedColor] gradient codes ("{#color1>}{#color2<>}{#color3<}" etc.) converted
- * to mojang color codes ("§x§R§R§G§G§B§B")
- */
-fun String.convertCmiGradients(): String {
-    return replace(namedColorSeparatorRegex) { match ->
+fun String.componentNamedColors(): String =
+    replace(namedColorRegex) { it.groupValues[1].fromHexOrNamed()?.let { "<color:#$it>"} ?: it.value }
+inline fun <T : Iterable<String>> T.componentNamedColors(): List<String> =
+    map { it.componentNamedColors() }
+inline fun Array<String>.componentNamedColors() =
+    map { it.componentNamedColors() }.toTypedArray()
+
+private fun String.expandCmiGradientSeparators(): String =
+    replace(namedColorSeparatorRegex) { match ->
         val hexCode = match.groupValues[1].fromHexOrNamed() ?: return@replace match.value
         val format = BooleanArray(5)
         val matches = formatCodeRegex().findAll(substring(0, match.range.first)).toList()
@@ -224,7 +289,14 @@ fun String.convertCmiGradients(): String {
                 if (format[i]) append(SECTION).append('k' + i)
             }
         }
-    }.replace(namedColorGradientRegex) { match ->
+    }
+
+/**
+ * @return the [String] with all [NamedColor] gradient codes ("{#color1>}{#color2<>}{#color3<}" etc.) converted
+ * to mojang color codes ("§x§R§R§G§G§B§B")
+ */
+fun String.convertCmiGradients(): String {
+    return expandCmiGradientSeparators().replace(namedColorGradientRegex) { match ->
         val (start, text, end) = match.destructured
         text.gradient(
             start.fromHexOrNamed() ?: return@replace match.value,
@@ -236,6 +308,32 @@ inline fun <T : Iterable<String>> T.convertCmiGradients(): List<String> =
     map { it.convertCmiGradients() }
 inline fun Array<String>.convertCmiGradients() =
     map { it.convertCmiGradients() }.toTypedArray()
+
+/**
+ * @return the [String] with all [NamedColor] gradient codes ("{#color1>}{#color2<>}{#color3<}" etc.) converted
+ * to minimessage format ("<gradient:#color1:#color2></gradient>")
+ */
+fun String.componentCmiGradients(): String =
+    expandCmiGradientSeparators().replace(namedColorGradientRegex) { match ->
+        val (start, text, end) = match.destructured
+        val s = start.fromHexOrNamed() ?: return@replace match.value
+        val e = end.fromHexOrNamed() ?: return@replace match.value
+        "<gradient:#$s:#$e>$text</gradient>"
+    }
+inline fun <T : Iterable<String>> T.componentCmiGradients(): List<String> =
+    map { it.componentCmiGradients() }
+inline fun Array<String>.componentCmiGradients() =
+    map { it.componentCmiGradients() }.toTypedArray()
+
+
+fun String.componentColors(): String = mojangColorRegex.replace(this) { match ->
+    match.value.drop(3).replace(SECTION.toString(), "").let { "<color:#$it>" }
+}.componentCmiGradients().componentNamedColors()
+    .componentHexCodes().componentFormatCodes().componentColorCodes()
+inline fun <T : Iterable<String>> T.componentColors(): List<String> =
+    map { it.componentColors() }
+inline fun Array<String>.componentColors() =
+    map { it.componentColors() }.toTypedArray()
 
 /**
  * @param start the starting [Color]
@@ -402,4 +500,126 @@ inline fun <T : Iterable<String>> T.convertColors(minify: Boolean = false, delim
 }
 inline fun Array<String>.convertColors(minify: Boolean = false, delimiter: CustomDelimiter = codePrefix): Array<String> {
     return map { it.convertColors(minify, delimiter) }.toTypedArray()
+}
+
+object ColorUtil {
+    @JvmStatic fun stripColors(input: String) = input.stripColors()
+    @JvmStatic fun stripColors(input: String, delimiter: CustomDelimiter) = input.stripColors(delimiter)
+    @JvmStatic fun <T : Iterable<String>> stripColors(input: T): List<String> = input.stripColors()
+    @JvmStatic fun <T : Iterable<String>> stripColors(input: T, delimiter: CustomDelimiter): List<String> = input.stripColors(delimiter)
+    @JvmStatic fun stripColors(input: Array<String>): Array<String> = input.stripColors()
+    @JvmStatic fun stripColors(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.stripColors(delimiter)
+
+    @JvmStatic fun stripFormatCodes(input: String) = input.stripFormatCodes()
+    @JvmStatic fun stripFormatCodes(input: String, delimiter: CustomDelimiter) = input.stripFormatCodes(delimiter)
+    @JvmStatic fun <T : Iterable<String>> stripFormatCodes(input: T): List<String> = input.stripFormatCodes()
+    @JvmStatic fun <T : Iterable<String>> stripFormatCodes(input: T, delimiter: CustomDelimiter): List<String> = input.stripFormatCodes(delimiter)
+    @JvmStatic fun stripFormatCodes(input: Array<String>): Array<String> = input.stripFormatCodes()
+    @JvmStatic fun stripFormatCodes(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.stripFormatCodes(delimiter)
+
+    @JvmStatic fun stripBukkitCodes(input: String) = input.stripBukkitCodes()
+    @JvmStatic fun stripBukkitCodes(input: String, delimiter: CustomDelimiter) = input.stripBukkitCodes(delimiter)
+    @JvmStatic fun <T : Iterable<String>> stripBukkitCodes(input: T): List<String> = input.stripBukkitCodes()
+    @JvmStatic fun <T : Iterable<String>> stripBukkitCodes(input: T, delimiter: CustomDelimiter): List<String> = input.stripBukkitCodes(delimiter)
+    @JvmStatic fun stripBukkitCodes(input: Array<String>): Array<String> = input.stripBukkitCodes()
+    @JvmStatic fun stripBukkitCodes(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.stripBukkitCodes(delimiter)
+
+    @JvmStatic fun stripNamedColors(input: String): String = input.stripNamedColors()
+    @JvmStatic fun <T : Iterable<String>> stripNamedColors(input: T): List<String> = input.stripNamedColors()
+    @JvmStatic fun stripNamedColors(input: Array<String>): Array<String> = input.stripNamedColors()
+
+    @JvmStatic fun stripHexCodes(input: String) = input.stripHexCodes()
+    @JvmStatic fun stripHexCodes(input: String, delimiter: CustomDelimiter) = input.stripHexCodes(delimiter)
+    @JvmStatic fun <T : Iterable<String>> stripHexCodes(input: T): List<String> = input.stripHexCodes()
+    @JvmStatic fun <T : Iterable<String>> stripHexCodes(input: T, delimiter: CustomDelimiter): List<String> = input.stripHexCodes(delimiter)
+    @JvmStatic fun stripHexCodes(input: Array<String>): Array<String> = input.stripHexCodes()
+    @JvmStatic fun stripHexCodes(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.stripHexCodes(delimiter)
+
+    @JvmStatic fun stripBukkitHexCodes(input: String) = input.stripBukkitHexCodes()
+    @JvmStatic fun stripBukkitHexCodes(input: String, delimiter: CustomDelimiter) = input.stripBukkitHexCodes(delimiter)
+    @JvmStatic fun <T : Iterable<String>> stripBukkitHexCodes(input: T): List<String> = input.stripBukkitHexCodes()
+    @JvmStatic fun <T : Iterable<String>> stripBukkitHexCodes(input: T, delimiter: CustomDelimiter): List<String> = input.stripBukkitHexCodes(delimiter)
+    @JvmStatic fun stripBukkitHexCodes(input: Array<String>): Array<String> = input.stripBukkitHexCodes()
+    @JvmStatic fun stripBukkitHexCodes(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.stripBukkitHexCodes(delimiter)
+
+    @JvmStatic fun stripColorCodes(input: String) = input.stripColorCodes()
+    @JvmStatic fun stripColorCodes(input: String, delimiter: CustomDelimiter) = input.stripColorCodes(delimiter)
+    @JvmStatic fun <T : Iterable<String>> stripColorCodes(input: T): List<String> = input.stripColorCodes()
+    @JvmStatic fun <T : Iterable<String>> stripColorCodes(input: T, delimiter: CustomDelimiter): List<String> = input.stripColorCodes(delimiter)
+    @JvmStatic fun stripColorCodes(input: Array<String>): Array<String> = input.stripColorCodes()
+    @JvmStatic fun stripColorCodes(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.stripColorCodes(delimiter)
+
+    @JvmStatic fun stripMojangCodes(input: String): String = input.stripMojangCodes()
+    @JvmStatic fun <T : Iterable<String>> stripMojangCodes(input: T): List<String> = input.stripMojangCodes()
+    @JvmStatic fun stripMojangCodes(input: Array<String>): Array<String> = input.stripMojangCodes()
+
+
+    @JvmStatic fun convertColorsAndFormat(input: String): String = input.convertColorsAndFormat()
+    @JvmStatic fun convertColorsAndFormat(input: String, delimiter: CustomDelimiter): String = input.convertColorsAndFormat(delimiter)
+    @JvmStatic fun <T : Iterable<String>> convertColorsAndFormat(input: T): List<String> = input.convertColorsAndFormat()
+    @JvmStatic fun <T : Iterable<String>> convertColorsAndFormat(input: T, delimiter: CustomDelimiter): List<String> = input.convertColorsAndFormat(delimiter)
+    @JvmStatic fun convertColorsAndFormat(input: Array<String>): Array<String> = input.convertColorsAndFormat()
+    @JvmStatic fun convertColorsAndFormat(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.convertColorsAndFormat(delimiter)
+
+    @JvmStatic fun convertBukkitColors(input: String): String = input.convertBukkitColors()
+    @JvmStatic fun convertBukkitColors(input: String, delimiter: CustomDelimiter): String = input.convertBukkitColors(delimiter)
+    @JvmStatic fun <T : Iterable<String>> convertBukkitColors(input: T): List<String> = input.convertBukkitColors()
+    @JvmStatic fun <T : Iterable<String>> convertBukkitColors(input: T, delimiter: CustomDelimiter): List<String> = input.convertBukkitColors(delimiter)
+    @JvmStatic fun convertBukkitColors(input: Array<String>): Array<String> = input.convertBukkitColors()
+    @JvmStatic fun convertBukkitColors(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.convertBukkitColors(delimiter)
+
+    @JvmStatic fun convertColorCodes(input: String): String = input.convertColorCodes()
+    @JvmStatic fun convertColorCodes(input: String, delimiter: CustomDelimiter): String = input.convertColorCodes(delimiter)
+    @JvmStatic fun <T : Iterable<String>> convertColorCodes(input: T): List<String> = input.convertColorCodes()
+    @JvmStatic fun <T : Iterable<String>> convertColorCodes(input: T, delimiter: CustomDelimiter): List<String> = input.convertColorCodes(delimiter)
+    @JvmStatic fun convertColorCodes(input: Array<String>): Array<String> = input.convertColorCodes()
+    @JvmStatic fun convertColorCodes(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.convertColorCodes(delimiter)
+
+    @JvmStatic fun convertFormatCodes(input: String): String = input.convertFormatCodes()
+    @JvmStatic fun convertFormatCodes(input: String, delimiter: CustomDelimiter): String = input.convertFormatCodes(delimiter)
+    @JvmStatic fun <T : Iterable<String>> convertFormatCodes(input: T): List<String> = input.convertFormatCodes()
+    @JvmStatic fun <T : Iterable<String>> convertFormatCodes(input: T, delimiter: CustomDelimiter): List<String> = input.convertFormatCodes(delimiter)
+    @JvmStatic fun convertFormatCodes(input: Array<String>): Array<String> = input.convertFormatCodes()
+    @JvmStatic fun convertFormatCodes(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.convertFormatCodes(delimiter)
+
+    @JvmStatic fun convertHexCodes(input: String): String = input.convertHexCodes()
+    @JvmStatic fun convertHexCodes(input: String, delimiter: CustomDelimiter): String = input.convertHexCodes(delimiter)
+    @JvmStatic fun <T : Iterable<String>> convertHexCodes(input: T): List<String> = input.convertHexCodes()
+    @JvmStatic fun <T : Iterable<String>> convertHexCodes(input: T, delimiter: CustomDelimiter): List<String> = input.convertHexCodes(delimiter)
+    @JvmStatic fun convertHexCodes(input: Array<String>): Array<String> = input.convertHexCodes()
+    @JvmStatic fun convertHexCodes(input: Array<String>, delimiter: CustomDelimiter): Array<String> = input.convertHexCodes(delimiter)
+
+    @JvmStatic fun convertNamedColors(input: String): String = input.convertNamedColors()
+    @JvmStatic fun <T : Iterable<String>> convertNamedColors(input: T): List<String> = input.convertNamedColors()
+    @JvmStatic fun convertNamedColors(input: Array<String>): Array<String> = input.convertNamedColors()
+
+    @JvmStatic fun convertCmiGradients(input: String): String = input.convertCmiGradients()
+    @JvmStatic fun <T : Iterable<String>> convertCmiGradients(input: T): List<String> = input.convertCmiGradients()
+    @JvmStatic fun convertCmiGradients(input: Array<String>): Array<String> = input.convertCmiGradients()
+
+    @JvmStatic fun gradient(input: String, start: Color, end: Color): String =
+        input.gradient(start, end)
+    @JvmStatic fun gradient(input: String, start: Color, end: Color, formatChar: CustomDelimiter): String =
+        input.gradient(start, end, formatChar)
+
+    @JvmStatic fun minifyColors(input: String): String = input.minifyColors()
+    @JvmStatic fun <T : Iterable<String>> minifyColors(input: T): List<String> = input.minifyColors()
+    @JvmStatic fun minifyColors(input: Array<String>): Array<String> = input.minifyColors()
+
+    @JvmStatic fun convertColors(input: String): String = input.convertColors()
+    @JvmStatic fun convertColors(input: String, minify: Boolean): String = input.convertColors(minify)
+    @JvmStatic fun convertColors(input: String, minify: Boolean, delimiter: CustomDelimiter): String =
+        input.convertColors(minify, delimiter)
+    @JvmStatic fun <T : Iterable<String>> convertColors(input: T): List<String> =
+        input.convertColors()
+    @JvmStatic fun <T : Iterable<String>> convertColors(input: T, minify: Boolean): List<String> =
+        input.convertColors(minify)
+    @JvmStatic fun <T : Iterable<String>> convertColors(input: T, minify: Boolean, delimiter: CustomDelimiter): List<String> =
+        input.convertColors(minify, delimiter)
+    @JvmStatic fun convertColors(input: Array<String>) =
+        input.convertColors()
+    @JvmStatic fun convertColors(input: Array<String>, minify: Boolean) =
+        input.convertColors(minify)
+    @JvmStatic fun convertColors(input: Array<String>, minify: Boolean, delimiter: CustomDelimiter) =
+        input.convertColors(minify, delimiter)
 }

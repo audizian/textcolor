@@ -236,19 +236,7 @@ class Features {
 class Playground {
     @Test
     fun play() {
-        //println("".convertColors(minify = true).replace(SECTION.toString(), "&"))
-        val color1 = NamedColor.PURPLE()
-        // val color1 = NamedColor.PURPLE.invoke() // same as above
-        val color2 = NamedColor["hummingbird"] ?: CodedColor.BLACK()
-        val line1 = "&n        &r".gradient(color1, color2)
-        val line2 = "&n        &r".gradient(color2, color1)
-
-        buildString {
-            repeat(4) {
-                append(line1)
-                append(line2)
-            }
-            append(line1)
-        }.convertColors(minify = true).let { println(it) }
+        "{#red>}rain{#orange<>}bowr{#yellow<>}ainb{#lime<>}owra{#aqua<>}inbo{#blue<>}wrai{#indigo<>}nbow{#purple<}"
+            .componentColors().replace(SECTION, '&').let { println(it) }
     }
 }

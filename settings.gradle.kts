@@ -1,2 +1,2 @@
-rootProject.name = "mc-text-color-util"
+rootProject.name = "textcolor"
 
